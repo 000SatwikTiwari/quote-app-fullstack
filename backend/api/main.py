@@ -127,7 +127,9 @@ def hash_password(password: str):
     return pwd.hash(password)
 
 def verify_password(plain_password: str, hashed_password: str):
-    return pwd.verify(plain_password, hashed_password)
+    # Absolutely guarantee the plain_password is under the limit
+    safe_plain = str(plain_password)[:71]
+    return pwd.verify(safe_plain, hashed_password)
 
 
 def create_notification(to_user, message, type_):
