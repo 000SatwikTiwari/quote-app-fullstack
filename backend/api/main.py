@@ -31,7 +31,7 @@ pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://quote-app-fullstack-owdy.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
