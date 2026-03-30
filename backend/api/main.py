@@ -24,7 +24,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 #Formals
 load_dotenv()
-app = FastAPI()
+app = FastAPI(root_path="/api")
 security = HTTPBearer()
 pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
