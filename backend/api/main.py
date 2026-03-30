@@ -102,12 +102,12 @@ class DeleteQuote(BaseModel):
 
 
 # ---------------- HELPERS functions----------------
-def validate_password(password:str):
+def validate_password(password: str):
     if len(password) < 6:
-        raise HTTPException(
-            status_code=400,
-            detail="Password must be at least 6 characters"
-        )
+        raise HTTPException(400, "Password must be at least 6 characters")
+    
+    if len(password.encode('utf-8')) > 72:
+        raise HTTPException(400, "Password too long (max 72 bytes)")
     
 def generate_otp():
     return str(random.randint(100000, 999999))
@@ -124,11 +124,11 @@ def send_otp_email(receiver_email, otp):
     server.quit()
 
 def hash_password(password: str):
-    return pwd.hash(password)
+    safe_password = str(password)[:72]   # 🔥 FIX HERE
+    return pwd.hash(safe_password)
 
 def verify_password(plain_password: str, hashed_password: str):
-    # Absolutely guarantee the plain_password is under the limit
-    safe_plain = str(plain_password)[:71]
+    safe_plain = str(plain_password)[:72]   # match same limit
     return pwd.verify(safe_plain, hashed_password)
 
 
