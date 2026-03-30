@@ -27,7 +27,7 @@ load_dotenv()
 app = FastAPI()
 router = APIRouter(prefix="/api")
 security = HTTPBearer()
-pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 # CORS for frontend
 app.add_middleware(
