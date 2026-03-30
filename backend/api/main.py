@@ -1,7 +1,7 @@
 #run:
 # cd Mini_SocialMedia
 #  uvicorn APILAB:app --reload
- 
+
 
 #imports 
 from bson import ObjectId
@@ -283,7 +283,18 @@ def login(user: Login):
         db_user = users.find_one({"email": user.email})
         if not db_user:
             raise HTTPException(status_code=404, detail="User not found")
-        if not verify_password(user.password, db_user["password"]):
+        
+        # BULLETPROOF CHECK
+        plain_pwd = str(user.password)[:72]  # Limit to 72 bytes
+        stored_pwd = db_user["password"]
+        
+        # Ensure stored password is a string (handle binary/bytes from DB)
+        if isinstance(stored_pwd, bytes):
+            stored_pwd = stored_pwd.decode('utf-8')
+        else:
+            stored_pwd = str(stored_pwd)
+
+        if not verify_password(plain_pwd, stored_pwd):
             raise HTTPException(status_code=401, detail="Wrong password")
         
         access_token = create_access_token({"sub": user.email})
@@ -301,7 +312,7 @@ def login(user: Login):
             "token_type": "bearer"
         }
     except Exception as e:
-        # This will show us the REAL error message in the 500 response!
+        # Final safety catch
         raise HTTPException(status_code=500, detail=f"Backend Error: {str(e)}")
 
 
