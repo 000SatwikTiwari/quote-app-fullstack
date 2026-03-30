@@ -49,7 +49,7 @@ REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 
 #DB
-client = MongoClient(MONGO_URL)
+client = MongoClient(MONGO_URL, serverSelectionTimeoutMS=5000)
 dbQ = client["QuotesAPP"]           #database for quote app
 
 users = dbQ["users"] # all useres registered
@@ -183,6 +183,11 @@ def get_current_user(
 
 
 #Routes:
+
+@app.get("/")
+def read_root():
+    return {"Status": "Backend is Online!"}
+
 
 # ---------------- REGISTER ----------------
 @app.post("/register")
