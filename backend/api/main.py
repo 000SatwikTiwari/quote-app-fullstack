@@ -5,7 +5,7 @@
 
 #imports 
 from bson import ObjectId
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, APIRouter
 from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
@@ -24,7 +24,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 #Formals
 load_dotenv()
-app = FastAPI(root_path="/api")
+app = FastAPI()
+router = APIRouter(prefix="/api")
 security = HTTPBearer()
 pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -184,13 +185,13 @@ def get_current_user(
 
 #Routes:
 
-@app.get("/")
+@router.get("/")
 def read_root():
     return {"Status": "Backend is Online!"}
 
 
 # ---------------- REGISTER ----------------
-@app.post("/register")
+@router.post("/register")
 def register(user:Register):    
     validate_password(user.password)
     if users.find_one({"email": user.email}):
@@ -210,7 +211,7 @@ def register(user:Register):
 
 
 # ---------------- VERIFY OTP (COMMON) ----------------
-@app.post("/verify-otp")
+@router.post("/verify-otp")
 def verify_otp(data: VerifyOTP):
     user = pending.find_one({"email": data.email})
     if not user:
@@ -242,7 +243,7 @@ def verify_otp(data: VerifyOTP):
 
 
 # ---------------- RESEND OTP ----------------
-@app.post("/resend-otp")
+@router.post("/resend-otp")
 def resend_otp(data: ResendOTP):
     user = pending.find_one({"email": data.email})
     if not user:
@@ -257,7 +258,7 @@ def resend_otp(data: ResendOTP):
 
 
 # ---------------- FORGOT PASSWORD ----------------
-@app.post("/forgot-password")
+@router.post("/forgot-password")
 def forgot_password(data: ForgotPassword):
     user = users.find_one({"email": data.email})
     validate_password(data.new_password)
@@ -276,7 +277,7 @@ def forgot_password(data: ForgotPassword):
 
 
 # ---------------- LOGIN ----------------
-@app.post("/login")
+@router.post("/login")
 def login(user: Login):
     db_user = users.find_one({"email": user.email})
     if not db_user:
@@ -301,7 +302,7 @@ def login(user: Login):
 
 
 #--------------------REFRESH ACCESS TOKEN---------------------
-@app.post("/refresh-token")
+@router.post("/refresh-token")
 def refresh_token(data: RefreshTokenRequest):
     try:
         payload = jwt.decode(data.refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -320,7 +321,7 @@ def refresh_token(data: RefreshTokenRequest):
 
 
 # ---------------- CHANGE PASSWORD ----------------
-@app.post("/change-password")
+@router.post("/change-password")
 def change_password(data: ChangePassword, user=Depends(get_current_user)):
     if not verify_password(data.old_password, user["password"]):
         raise HTTPException(status_code=400, detail="Wrong old password, retry!")
@@ -329,7 +330,7 @@ def change_password(data: ChangePassword, user=Depends(get_current_user)):
 
 
 # ----------------Delete Account ----------------
-@app.delete("/delete-account")
+@router.delete("/delete-account")
 def delete_account(user=Depends(get_current_user)):
     users.delete_one({"email": user["email"]})
     refresh_tokens.delete_many({"email": user["email"]})
@@ -337,14 +338,14 @@ def delete_account(user=Depends(get_current_user)):
 
 
 # ----------------Log Out ----------------
-@app.post("/logout")
+@router.post("/logout")
 def logout(user=Depends(get_current_user)):
     refresh_tokens.delete_many({"email": user["email"]})
     return {"msg": "Logout successful"}
 
 
 # ----------------My profile ----------------
-@app.get("/my-profile")
+@router.get("/my-profile")
 def my_profile(user=Depends(get_current_user)):
     return {
         "email": user["email"],
@@ -355,7 +356,7 @@ def my_profile(user=Depends(get_current_user)):
 
 
 # ----------------Edit profile ----------------
-@app.post("/edit_profile")
+@router.post("/edit_profile")
 def EditProfile(name: str, user=Depends(get_current_user)):
     data = users.find_one({"email": user["email"]})
     temp = data["full_name"]
@@ -364,7 +365,7 @@ def EditProfile(name: str, user=Depends(get_current_user)):
 
 
 # ----------------discover-users ----------------
-@app.get("/discover-users")
+@router.get("/discover-users")
 def discover_users(
     page: int = 1,
     limit: int = 10,
@@ -390,7 +391,7 @@ def discover_users(
 
 
 # -----------------Follow users ----------------
-@app.post("/follow")
+@router.post("/follow")
 def follow_user(target_email: str, background_tasks: BackgroundTasks, user=Depends(get_current_user)):
     if target_email == user["email"]:
         raise HTTPException(400, "You cannot follow yourself")
@@ -408,7 +409,7 @@ def follow_user(target_email: str, background_tasks: BackgroundTasks, user=Depen
 
 
 # -----------------CREATE QUOTE ----------------
-@app.post("/create-quote")
+@router.post("/create-quote")
 def create_quote(content: str, user=Depends(get_current_user)):
     quotes.insert_one({
         "email": user["email"],
@@ -422,7 +423,7 @@ def create_quote(content: str, user=Depends(get_current_user)):
 
 
 # -----------------my-posts" ---------------
-@app.get("/my-posts")
+@router.get("/my-posts")
 def my_posts(user=Depends(get_current_user)):
     user_quotes = list(quotes.find({"email": user["email"]}))
     result = []
@@ -451,7 +452,7 @@ def my_posts(user=Depends(get_current_user)):
 
 
 # -----------------LIKE / DISLIKE ----------------
-@app.post("/like")
+@router.post("/like")
 def like_quote(data: LikeRequest, background_tasks: BackgroundTasks, user=Depends(get_current_user)):
     quote_id = data.quote_id
     action = data.action.value
@@ -495,7 +496,7 @@ def like_quote(data: LikeRequest, background_tasks: BackgroundTasks, user=Depend
 
 
 # -----------------Comment ----------------
-@app.post("/comment")
+@router.post("/comment")
 def add_comment(quote_id: str, background_tasks: BackgroundTasks, comment: str, user=Depends(get_current_user)):
     comments.insert_one({
         "quote_id": quote_id,
@@ -510,7 +511,7 @@ def add_comment(quote_id: str, background_tasks: BackgroundTasks, comment: str, 
 
 
 # ---------------- FEED ----------------
-@app.get("/feed")
+@router.get("/feed")
 def get_feed(
     page: int = 1,
     limit: int = 10,
@@ -548,7 +549,7 @@ def get_feed(
 
 
 #---------------------My Followers----------------------
-@app.get("/my-followers")
+@router.get("/my-followers")
 def my_followers(user=Depends(get_current_user)):
     followers_data = list(follows.find({"following": user["email"]}))
     result = []
@@ -560,7 +561,7 @@ def my_followers(user=Depends(get_current_user)):
 
 
 #---------------------Following----------------------
-@app.get("/my-following")
+@router.get("/my-following")
 def my_following(user=Depends(get_current_user)):
     following_data = list(follows.find({"follower": user["email"]}))
     result = []
@@ -571,7 +572,7 @@ def my_following(user=Depends(get_current_user)):
     return {"total_following": len(result), "following": result}
 
 
-@app.get("/my-notifications")
+@router.get("/my-notifications")
 def get_notifications(user=Depends(get_current_user)):
     data = list(notifications.find({"to_user": user["email"]}).sort("created_at", -1))
     result = []
@@ -586,7 +587,7 @@ def get_notifications(user=Depends(get_current_user)):
 
 
 #---------------------Edit-quote----------------------
-@app.put("/edit-quote")
+@router.put("/edit-quote")
 def edit_quote(data: EditQuote, user=Depends(get_current_user)):
     quote = quotes.find_one({"_id": ObjectId(data.quote_id)})
     if not quote:
@@ -601,7 +602,7 @@ def edit_quote(data: EditQuote, user=Depends(get_current_user)):
 
 
 # -----------------UNFOLLOW----------------
-@app.post("/unfollow")
+@router.post("/unfollow")
 def unfollow_user(target_email: str, user=Depends(get_current_user)):
     if target_email == user["email"]:
         raise HTTPException(400, "You cannot unfollow yourself")
@@ -615,7 +616,7 @@ def unfollow_user(target_email: str, user=Depends(get_current_user)):
 
 
 # -----------------DELETE QUOTE----------------
-@app.delete("/delete-quote")
+@router.delete("/delete-quote")
 def delete_quote(data: DeleteQuote, user=Depends(get_current_user)):
     quote = quotes.find_one({"_id": ObjectId(data.quote_id)})
     if not quote:
@@ -626,3 +627,7 @@ def delete_quote(data: DeleteQuote, user=Depends(get_current_user)):
     likes.delete_many({"quote_id": data.quote_id})
     comments.delete_many({"quote_id": data.quote_id})
     return {"msg": "Quote deleted successfully"}
+
+
+# Include router
+app.include_router(router)
