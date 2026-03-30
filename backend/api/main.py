@@ -279,26 +279,30 @@ def forgot_password(data: ForgotPassword):
 # ---------------- LOGIN ----------------
 @router.post("/login")
 def login(user: Login):
-    db_user = users.find_one({"email": user.email})
-    if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
-    if not verify_password(user.password, db_user["password"]):
-        raise HTTPException(status_code=401, detail="Wrong password")
-    
-    access_token = create_access_token({"sub": user.email})
-    refresh_token = create_refresh_token({"sub": user.email})
-    refresh_tokens.insert_one({
-        "email": user.email,
-        "token": refresh_token,
-        "created_at": datetime.utcnow(),
-        "expires_at": datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    })
-    return {
-        "msg": "Login success",
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer"
-    }
+    try:
+        db_user = users.find_one({"email": user.email})
+        if not db_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        if not verify_password(user.password, db_user["password"]):
+            raise HTTPException(status_code=401, detail="Wrong password")
+        
+        access_token = create_access_token({"sub": user.email})
+        refresh_token = create_refresh_token({"sub": user.email})
+        refresh_tokens.insert_one({
+            "email": user.email,
+            "token": refresh_token,
+            "created_at": datetime.utcnow(),
+            "expires_at": datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+        })
+        return {
+            "msg": "Login success",
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer"
+        }
+    except Exception as e:
+        # This will show us the REAL error message in the 500 response!
+        raise HTTPException(status_code=500, detail=f"Backend Error: {str(e)}")
 
 
 #--------------------REFRESH ACCESS TOKEN---------------------
